@@ -1,0 +1,7 @@
+﻿@page "/"
+
+<DragDropShared.DragDropApp HostName="@_host" />
+
+@code {
+    private string _host = $"MAUI ({DeviceInfo.Current.Platform})";
+}
