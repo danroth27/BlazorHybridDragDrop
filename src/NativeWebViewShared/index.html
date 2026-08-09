@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Plain WebView2 Drag &amp; Drop</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { color: #1f1f1f; font-family: system-ui, sans-serif; margin: 0; }
+        header { background: linear-gradient(120deg, rgb(5,39,103), #3a0647); color: #fff; padding: 18px 24px; }
+        header h1 { font-size: 1.5rem; margin: 0 0 5px; }
+        main { margin: 0 auto; max-width: 900px; padding: 20px; }
+        section { border-bottom: 1px solid #ddd; padding: 8px 0 24px; }
+        .source { background: #1e73be; border-radius: 6px; color: #fff; cursor: grab; display: inline-block; padding: 12px; }
+        .target { background: #2e8b57; border-radius: 6px; color: #fff; margin-top: 8px; min-height: 80px; padding: 28px; text-align: center; }
+        .target.over { outline: 3px dashed #ffd700; }
+        img { border-radius: 8px; height: 120px; width: 120px; }
+        .filedrop { border: 2px dashed #888; border-radius: 8px; padding: 32px; text-align: center; }
+        #log { background: #111; border-radius: 6px; color: #7cfc00; font: 12px Consolas, monospace; height: 240px; overflow: auto; padding: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Plain WebView2 Drag &amp; Drop</h1>
+        <div id="host">Loading host…</div>
+    </header>
+    <main>
+        <p>This page contains no Blazor or .NET event handlers. It isolates the native WebView2 control.</p>
+
+        <section>
+            <h2>1. Native HTML5 drag &amp; drop</h2>
+            <div id="source" class="source" draggable="true">drag me</div>
+            <div id="target" class="target">and drop me here</div>
+        </section>
+
+        <section>
+            <h2>2. Draggable image</h2>
+            <img id="image" draggable="true" alt="drag me"
+                 src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' rx='12' fill='%23512BD4'/><text x='60' y='65' font-size='16' fill='white' text-anchor='middle'>drag me</text></svg>">
+        </section>
+
+        <section>
+            <h2>3. Drop a file from the OS</h2>
+            <div id="filedrop" class="filedrop">Drop files here</div>
+        </section>
+
+        <h2>Event log</h2>
+        <button id="clear">Clear log</button>
+        <div id="log"></div>
+    </main>
+
+    <script>
+        const host = new URLSearchParams(location.search).get('host') || 'Unknown host';
+        document.getElementById('host').textContent = host + ' | ' + navigator.userAgent;
+
+        const logElement = document.getElementById('log');
+        function log(message) {
+            const time = new Date().toISOString().substring(11, 23);
+            logElement.textContent += time + '  ' + message + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        document.getElementById('clear').addEventListener('click', () => logElement.textContent = '');
+
+        for (const id of ['source', 'target', 'image', 'filedrop']) {
+            const element = document.getElementById(id);
+            for (const eventName of ['dragstart', 'dragenter', 'dragover', 'dragleave', 'drop', 'dragend']) {
+                element.addEventListener(eventName, event => {
+                    if (eventName === 'dragenter' || eventName === 'dragover' || eventName === 'drop') {
+                        event.preventDefault();
+                    }
+                    if (eventName === 'dragenter') element.classList.add('over');
+                    if (eventName === 'dragleave' || eventName === 'drop') element.classList.remove('over');
+
+                    const files = event.dataTransfer?.files;
+                    const fileText = files?.length
+                        ? ' files=[' + Array.from(files, file => file.name).join(', ') + ']'
+                        : '';
+                    log('[' + id + '] ' + eventName + fileText);
+
+                    if (eventName === 'drop' && id === 'target') {
+                        element.textContent = 'item dropped';
+                    } else if (eventName === 'drop' && id === 'filedrop' && files?.length) {
+                        element.textContent = 'dropped: ' + Array.from(files, file => file.name).join(', ');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

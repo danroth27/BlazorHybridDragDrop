@@ -1,4 +1,5 @@
-.ddt-container { font-family: system-ui, sans-serif; padding: 12px; max-width: 900px; }
+.ddt-container { box-sizing: border-box; font-family: system-ui, sans-serif; padding: 20px; max-width: 960px; margin: 0 auto; }
+.ddt-container h1 { margin-top: 0; }
 .ddt-container h2 { margin-top: 28px; border-bottom: 2px solid #512BD4; padding-bottom: 4px; }
 .ddt-env { background: #f3f0fb; border: 1px solid #d6ccf2; border-radius: 6px; padding: 8px 12px; font-size: 13px; white-space: pre-wrap; }
 
@@ -8,6 +9,7 @@
 
 .ddt-list { list-style: none; padding: 0; margin: 0; max-width: 300px; }
 .ddt-list li { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 10px 12px; margin: 6px 0; cursor: grab; user-select: none; }
+.ddt-list[data-pointer-sortable] { touch-action: none; }
 .ddt-list li.dragging { opacity: 0.4; }
 .ddt-list li.ps-dragging { box-shadow: 0 6px 16px rgba(0,0,0,.3); cursor: grabbing; }
 

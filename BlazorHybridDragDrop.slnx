@@ -3,6 +3,10 @@
     <Project Path="src/DragDropMaui/DragDropMaui.csproj" />
     <Project Path="src/DragDropShared/DragDropShared.csproj" />
     <Project Path="src/DragDropWinForms/DragDropWinForms.csproj" />
+    <Project Path="src/DragDropWinUIWebView2/DragDropWinUIWebView2.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/DragDropWpf/DragDropWpf.csproj" />
+    <Project Path="src/DragDropWpfWebView2/DragDropWpfWebView2.csproj" />
   </Folder>
 </Solution>

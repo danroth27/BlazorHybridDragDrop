@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 using Microsoft.Extensions.DependencyInjection;
+using DragDropShared;
 
 namespace DragDropWinForms;
 
@@ -13,6 +14,7 @@ public class MainForm : Form
 
         var services = new ServiceCollection();
         services.AddWindowsFormsBlazorWebView();
+        services.AddSingleton(new DragDropHostInfo("WinForms (Blazor Hybrid)"));
 #if DEBUG
         services.AddBlazorWebViewDeveloperTools();
 #endif
@@ -23,7 +25,7 @@ public class MainForm : Form
             HostPage = "wwwroot\\index.html",
             Services = services.BuildServiceProvider(),
         };
-        blazor.RootComponents.Add<Main>("#app");
+        blazor.RootComponents.Add<Routes>("#app");
         Controls.Add(blazor);
     }
 }

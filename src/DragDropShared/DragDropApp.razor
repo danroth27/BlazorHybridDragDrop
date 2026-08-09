@@ -36,7 +36,8 @@
         @for (int i = 0; i < _items.Count; i++)
         {
             var index = i;
-            <li draggable="true"
+            <li @key="_items[index]"
+                draggable="true"
                 class="@(_dragIndex == index ? "dragging" : "")"
                 @ondragstart="@(() => { _dragIndex = index; Log($"[Blazor] s2 dragstart #{index} ({_items[index]})"); })"
                 @ondragover:preventDefault="true"
@@ -75,7 +76,7 @@
         Does NOT use HTML5 DnD — uses pointer events, so it works on every platform
         including Android/iOS. This is the recommended workaround.
     </p>
-    <ul id="s5-pointer" class="ddt-list">
+    <ul id="s5-pointer" class="ddt-list" data-pointer-sortable>
         @foreach (var item in _pointerItems)
         {
             <li data-ps-item>@item</li>

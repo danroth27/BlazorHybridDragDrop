@@ -6,6 +6,7 @@
 window.dragDropTest = (function () {
     let dotnet = null;
     const rawEvents = ['dragstart', 'drag', 'dragenter', 'dragover', 'dragleave', 'drop', 'dragend'];
+    const lastLogged = new Map();
 
     function log(msg) {
         try {
@@ -35,6 +36,18 @@ window.dragDropTest = (function () {
                     if (ev === 'dragover' || ev === 'drop' || ev === 'dragenter') {
                         e.preventDefault();
                     }
+
+                    // Avoid hundreds of interop calls and Blazor renders during an active
+                    // drag. We only need periodic proof that these high-frequency events fire.
+                    if (ev === 'drag' || ev === 'dragover') {
+                        const key = id + ':' + ev;
+                        const now = performance.now();
+                        if (now - (lastLogged.get(key) || 0) < 250) {
+                            return;
+                        }
+                        lastLogged.set(key, now);
+                    }
+
                     let extra = '';
                     if (e.dataTransfer) {
                         const files = e.dataTransfer.files;
@@ -68,16 +81,17 @@ window.dragDropTest = (function () {
         pointerSortable: function (containerId) {
             const container = document.getElementById(containerId);
             if (!container) { log('pointerSortable: container not found'); return; }
-            let dragEl = null, placeholder = null, startY = 0, offsetY = 0;
+            let dragEl = null, placeholder = null, offsetY = 0, pointerId = null;
 
             function onPointerDown(e) {
                 const item = e.target.closest('[data-ps-item]');
                 if (!item || !container.contains(item)) return;
+                e.preventDefault();
                 dragEl = item;
+                pointerId = e.pointerId;
                 dragEl.setPointerCapture(e.pointerId);
                 const rect = dragEl.getBoundingClientRect();
                 offsetY = e.clientY - rect.top;
-                startY = e.clientY;
                 placeholder = dragEl.cloneNode(false);
                 placeholder.style.visibility = 'hidden';
                 dragEl.parentNode.insertBefore(placeholder, dragEl.nextSibling);
@@ -90,7 +104,8 @@ window.dragDropTest = (function () {
                 log('[pointerSortable] pointerdown on "' + item.textContent.trim() + '"');
             }
             function onPointerMove(e) {
-                if (!dragEl) return;
+                if (!dragEl || e.pointerId !== pointerId) return;
+                e.preventDefault();
                 dragEl.style.top = (e.clientY - offsetY) + 'px';
                 const siblings = Array.from(container.querySelectorAll('[data-ps-item]')).filter(function (n) { return n !== dragEl; });
                 for (const sib of siblings) {
@@ -102,8 +117,12 @@ window.dragDropTest = (function () {
                     }
                 }
             }
-            function onPointerUp(e) {
-                if (!dragEl) return;
+            function finishDrag(e, cancelled) {
+                if (!dragEl || e.pointerId !== pointerId) return;
+                const itemText = dragEl.textContent.trim();
+                if (dragEl.hasPointerCapture(pointerId)) {
+                    dragEl.releasePointerCapture(pointerId);
+                }
                 dragEl.style.position = '';
                 dragEl.style.width = '';
                 dragEl.style.zIndex = '';
@@ -112,12 +131,15 @@ window.dragDropTest = (function () {
                 dragEl.classList.remove('ps-dragging');
                 placeholder.parentNode.insertBefore(dragEl, placeholder);
                 placeholder.remove();
-                log('[pointerSortable] dropped "' + dragEl.textContent.trim() + '"');
-                dragEl = null; placeholder = null;
+                log('[pointerSortable] ' + (cancelled ? 'cancelled' : 'dropped') + ' "' + itemText + '"');
+                dragEl = null;
+                placeholder = null;
+                pointerId = null;
             }
             container.addEventListener('pointerdown', onPointerDown);
             window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointerup', function (e) { finishDrag(e, false); });
+            window.addEventListener('pointercancel', function (e) { finishDrag(e, true); });
             log('pointerSortable initialized on ' + containerId);
         }
     };
