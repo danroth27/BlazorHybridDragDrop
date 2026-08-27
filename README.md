@@ -38,17 +38,18 @@ The event log records raw DOM events and Blazor callbacks. High-frequency `drag`
 ## Verified results
 
 Manual verification was performed on Windows and a Pixel 7 Android emulator using .NET
-10.0.302. The Hybrid projects use the workload dependencies: Windows App SDK
+10.0.302. David Ortinau additionally tested the five scenarios on iOS Simulator and Mac
+Catalyst. The Hybrid projects use the workload dependencies: Windows App SDK
 `1.7.250909003` and WebView2 SDK `1.0.3179.45`. The plain reductions were additionally
 retested with Windows App SDK `1.8.260710003` and WebView2 SDK `1.0.4129.50`.
 
-| Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android |
-|---|---|---|---|---|
-| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** |
-| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** |
-| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag |
-| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested |
-| Pointer workaround | **Works** | **Works** | **Works** | Original sample left floating items after `pointercancel`; now fixed |
+| Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android | MAUI iOS / Mac Catalyst |
+|---|---|---|---|---|---|
+| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** | **Fails** |
+| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** | **Fails** |
+| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag | **Fails** |
+| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | **Fails in reported verification** |
+| Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** |
 
 ### Conclusions from the Hybrid comparison
 
@@ -58,9 +59,10 @@ retested with Windows App SDK `1.8.260710003` and WebView2 SDK `1.0.4129.50`.
   opting in through the underlying WinUI `WebView2.AllowDrop` property.
 - Windows Forms succeeds with the same Razor component. Blazor and the component are
   therefore not the common cause of the Windows failures.
-- Current Android WebView supports the basic native element and sortable scenarios tested
-  here, contrary to several older comments on the issue.
-- iOS and Mac Catalyst remain untested.
+- Current Android WebView supports native element drop and sortable reorder in this sample,
+  contrary to several older comments on the issue. Image drag remains unusable.
+- On iOS Simulator and Mac Catalyst, only the pointer-event implementation in scenario 5
+  worked in the reported verification. Detailed per-event logs have not yet been collected.
 
 ## Additional findings and sample fixes
 
@@ -116,11 +118,17 @@ though the file drop succeeds.
 - WinUI in-WebView drag/drop and stale drag visuals are tracked by
   [microsoft-ui-xaml#9187](https://github.com/microsoft/microsoft-ui-xaml/issues/9187) and
   [microsoft-ui-xaml#10576](https://github.com/microsoft/microsoft-ui-xaml/issues/10576).
-- MAUI can fix its external-file-drop behavior by setting `AllowDrop=true` when creating the
-  WinUI WebView2, or applications can opt in through `BlazorWebViewInitialized` as this
-  sample does.
+- The MAUI Windows external-file-drop fix is tracked by
+  [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Draft
+  [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904) sets `AllowDrop=true`
+  when the handler creates its WinUI WebView2 and adds a Windows device test. The full
+  `maui-pr` pipeline is green, and the Windows BlazorWebView device suite passed locally
+  with 18 passed, 4 skipped, and 0 failed tests.
+- Until that change ships, applications can opt in through `BlazorWebViewInitialized`, as
+  this sample does.
 
-No new external issue is required at this point; exact upstream reports are already open.
+No new upstream dependency issue is required at this point; the exact WebView2 and WinUI
+reports are already open.
 
 ## Run the Hybrid hosts
 
@@ -171,6 +179,7 @@ HTML drag/drop remains blocked by the open WinUI issues above.
 
 ## Remaining verification
 
-- Test MAUI iOS and Mac Catalyst on a Mac.
-- Retest the corrected Android pointer workaround.
-- Decide whether to propose a MAUI change that enables `AllowDrop` by default on Windows.
+- Collect detailed event logs for scenarios 1–4 on iOS and Mac Catalyst, especially the
+  Mac Catalyst external-file-drop behavior.
+- Complete MAUI team review of [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904).
+- Track the upstream WPF composition-control and WinUI in-page drag/drop issues linked above.
