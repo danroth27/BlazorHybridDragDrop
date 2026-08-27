@@ -41,7 +41,8 @@ Manual verification was performed on Windows and a Pixel 7 Android emulator usin
 10.0.302. David Ortinau additionally tested the five scenarios on iOS Simulator and Mac
 Catalyst. The Hybrid projects use the workload dependencies: Windows App SDK
 `1.7.250909003` and WebView2 SDK `1.0.3179.45`. The plain reductions were additionally
-retested with Windows App SDK `1.8.260710003` and WebView2 SDK `1.0.4129.50`.
+retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
+`1.0.4129.50`, and WebView2 Runtime `151.0.4129.107`.
 
 | Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android | MAUI iOS / Mac Catalyst |
 |---|---|---|---|---|---|
@@ -100,14 +101,18 @@ its WPF assembly and produces `MSB3277` for `WindowsBase` versions 4.0 and 5.0.
 |---|---|---|---|
 | WPF standard `WebView2` | **Works** | **Works** | **Works** |
 | WPF `WebView2CompositionControl` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Fails**, even with `AllowExternalDrop=true` |
-| WinUI 3 `WebView2` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Works** with `AllowDrop=true` |
+| WinUI 3 `WebView2`, Windows App SDK 1.8, `AllowDrop=true` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Works** |
+| WinUI 3 `WebView2`, Windows App SDK 2.0.1, `AllowDrop=false` | **Fails:** immediate `dragstart`/`dragend` | Preview appears only outside the app | **Fails** |
+| WinUI 3 `WebView2`, Windows App SDK 2.0.1, `AllowDrop=true` | **Works** | **Works:** preview appears inside and outside the WebView | **Works** |
 
-These results are unchanged with WebView2 SDK `1.0.4129.50` and Windows App SDK
-`1.8.260710003`.
+Windows App SDK 2.0.1 adds the missing WinUI WebView2 drag support, but the WebView2 must
+also have `AllowDrop=true`. With that combination, the native element reached its HTML
+drop target, the image preview rendered both inside and outside the WebView, and an
+external file reached the HTML drop handler. No stale drag preview remained.
 
-Attempting a native drag in WinUI/MAUI Windows can leave stale drag visual state. A
-subsequent external file drag may display the blue “drag me” preview at the pointer even
-though the file drop succeeds.
+On Windows App SDK 1.8, attempting a native drag in WinUI/MAUI Windows can leave stale
+drag visual state. A subsequent external file drag may display the blue “drag me” preview
+at the pointer even though the file drop succeeds.
 
 ### Ownership and current blockers
 
@@ -115,15 +120,20 @@ though the file drop succeeds.
   [WebView2Feedback#5237](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5237).
 - WPF composition-control external drop is blocked by
   [WebView2Feedback#5124](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5124).
-- WinUI in-WebView drag/drop and stale drag visuals are tracked by
+- The Windows App SDK 1.8 WinUI in-WebView failures and stale drag visuals are tracked by
   [microsoft-ui-xaml#9187](https://github.com/microsoft/microsoft-ui-xaml/issues/9187) and
   [microsoft-ui-xaml#10576](https://github.com/microsoft/microsoft-ui-xaml/issues/10576).
+  The Windows App SDK 2.0.1 verification indicates these scenarios now work when
+  `AllowDrop=true`.
 - The MAUI Windows external-file-drop fix is tracked by
   [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Draft
   [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904) sets `AllowDrop=true`
   when the handler creates its WinUI WebView2 and adds a Windows device test. The full
   `maui-pr` pipeline is green, and the Windows BlazorWebView device suite passed locally
   with 18 passed, 4 skipped, and 0 failed tests.
+- MAUI currently pins Windows App SDK `1.8.260508005`. With #37904 and a future update to
+  Windows App SDK 2.0.1 or later, the plain-control results indicate that native in-page
+  drag/drop and image dragging should work in addition to external file drop.
 - Until that change ships, applications can opt in through `BlazorWebViewInitialized`, as
   this sample does.
 
@@ -174,12 +184,16 @@ The Windows App SDK PRI build tasks require Visual Studio MSBuild in this enviro
 .\src\DragDropWinUIWebView2\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\DragDropWinUIWebView2.exe
 ```
 
-The project explicitly sets `AllowDrop=true`. This enables external file drops, but native
-HTML drag/drop remains blocked by the open WinUI issues above.
+The project uses Windows App SDK 2.0.1 and exposes a `WebView2.AllowDrop` toggle. Test the
+native element, image, and external-file scenarios with the toggle off, then clear the log,
+turn it on, and repeat. All three scenarios require `AllowDrop=true`; native in-page drag
+also requires Windows App SDK 2.0 or later.
 
 ## Remaining verification
 
 - Collect detailed event logs for scenarios 1–4 on iOS and Mac Catalyst, especially the
   Mac Catalyst external-file-drop behavior.
 - Complete MAUI team review of [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904).
-- Track the upstream WPF composition-control and WinUI in-page drag/drop issues linked above.
+- Validate MAUI BlazorWebView with #37904 and Windows App SDK 2.0.1, then determine the
+  appropriate MAUI dependency-update path.
+- Track the upstream WPF composition-control issues linked above.

@@ -2,8 +2,22 @@
     x:Class="DragDropWinUIWebView2.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Plain WinUI WebView2 Drag &amp; Drop">
-    <Grid>
-        <WebView2 x:Name="WebView" AllowDrop="True" />
+    Title="WinUI WebView2 Drag &amp; Drop — Windows App SDK 2.0">
+    <Grid RowDefinitions="Auto,*">
+        <StackPanel Margin="12" Spacing="8">
+            <TextBlock
+                Text="Windows App SDK 2.0.1. Test the three native scenarios, then toggle AllowDrop and repeat."
+                TextWrapping="Wrap" />
+            <ToggleSwitch
+                x:Name="AllowDropToggle"
+                Header="WebView2.AllowDrop"
+                IsOn="False"
+                Toggled="AllowDropToggle_Toggled" />
+        </StackPanel>
+
+        <WebView2
+            x:Name="WebView"
+            Grid.Row="1"
+            AllowDrop="False" />
     </Grid>
 </Window>
