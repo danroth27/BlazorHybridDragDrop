@@ -126,14 +126,25 @@ at the pointer even though the file drop succeeds.
   The Windows App SDK 2.0.1 verification indicates these scenarios now work when
   `AllowDrop=true`.
 - The MAUI Windows external-file-drop fix is tracked by
-  [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Draft
+  [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Merged
   [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904) sets `AllowDrop=true`
   when the handler creates its WinUI WebView2 and adds a Windows device test. The full
   `maui-pr` pipeline is green, and the Windows BlazorWebView device suite passed locally
   with 18 passed, 4 skipped, and 0 failed tests.
-- MAUI currently pins Windows App SDK `1.8.260508005`. With #37904 and a future update to
-  Windows App SDK 2.0.1 or later, the plain-control results indicate that native in-page
-  drag/drop and image dragging should work in addition to external file drop.
+- MAUI currently pins Windows App SDK `1.8.260508005`. The merged #37904 packages were
+  validated in this MAUI Blazor Hybrid sample with Windows App SDK 2.0.1 and no
+  app-level `AllowDrop` workaround. All five scenarios worked:
+
+  | Scenario | MAUI Windows, #37904 + Windows App SDK 2.0.1 |
+  |---|---|
+  | Native element DnD | **Works:** DOM and Blazor `drop` events fire |
+  | Native sortable | **Works:** repeated reorders succeed |
+  | Image drag | **Works:** preview appears inside and outside the window |
+  | External file drop | **Works:** `drop files=[test.txt]` and Blazor `ondrop` fire |
+  | Pointer workaround | **Works** |
+
+  The validation used MAUI package `10.0.110-ci.pr37904.26427.71` and WebView2 Runtime
+  `151.0.4129.107`. No stale visuals, freezes, or crashes were observed.
 - Until that change ships, applications can opt in through `BlazorWebViewInitialized`, as
   this sample does.
 
@@ -193,7 +204,5 @@ also requires Windows App SDK 2.0 or later.
 
 - Collect detailed event logs for scenarios 1–4 on iOS and Mac Catalyst, especially the
   Mac Catalyst external-file-drop behavior.
-- Complete MAUI team review of [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904).
-- Validate MAUI BlazorWebView with #37904 and Windows App SDK 2.0.1, then determine the
-  appropriate MAUI dependency-update path.
+- Determine the appropriate MAUI dependency-update path for Windows App SDK 2.0 or later.
 - Track the upstream WPF composition-control issues linked above.
