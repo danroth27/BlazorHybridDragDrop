@@ -12,5 +12,6 @@
 
   <ItemGroup>
     <AndroidAsset Include="..\NativeMobileWebViewShared\index.html" Link="index.html" />
+    <PackageReference Include="Xamarin.AndroidX.WebKit" Version="1.14.0.1" />
   </ItemGroup>
 </Project>
