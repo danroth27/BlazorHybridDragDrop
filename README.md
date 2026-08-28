@@ -45,13 +45,13 @@ Catalyst. The Hybrid projects use the workload dependencies: Windows App SDK
 retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 `1.0.4129.50`, and WebView2 Runtime `151.0.4129.107`.
 
-| Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android | MAUI iOS / Mac Catalyst |
-|---|---|---|---|---|---|
-| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** | **Works when `dragstart` seeds `dataTransfer`; otherwise ends immediately** |
-| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** | **iOS works with seeded `dataTransfer`; Catalyst remains intermittent in both MAUI and plain WKWebView** |
-| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag | **Catalyst:** sustained DOM drag; **iOS:** WebKit image preview/context behavior, not a normal image drag |
-| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | **Catalyst works; iPhone Simulator intercepts Mac file transfer before DOM `drop`** |
-| Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** |
+| Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android | MAUI iOS | MAUI Mac Catalyst |
+|---|---|---|---|---|---|---|
+| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** | **Works when `dragstart` seeds `dataTransfer`; otherwise ends immediately** | **Works when `dragstart` seeds `dataTransfer`; otherwise ends immediately** |
+| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** | **Works reliably with seeded `dataTransfer`** | **Intermittent with seeded `dataTransfer` in both MAUI and plain WKWebView** |
+| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag | WebKit image preview/context behavior, not a normal image drag | Sustained DOM drag; visible preview differed between MAUI and plain WKWebView |
+| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | iPhone Simulator intercepts Mac file transfer before DOM `drop` | **Works from Finder** |
+| Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** | **Works** |
 
 ### Conclusions from the Hybrid comparison
 
