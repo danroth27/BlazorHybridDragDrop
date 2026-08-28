@@ -12,6 +12,7 @@ plain WebView2 controls. It includes the WPF .NET 10 configuration reported in
 | `DragDropWpf` | WPF Blazor Hybrid using `WebView2CompositionControl` |
 | `DragDropWinForms` | Windows Forms Blazor Hybrid using standard WebView2 |
 | `DragDropMaui` | MAUI Blazor Hybrid for Windows, Android, iOS, and Mac Catalyst |
+| `DragDropNativeWKWebView` | Plain UIKit `WKWebView` comparison for iOS and Mac Catalyst, with no MAUI or Blazor |
 | `DragDropWpfWebView2` | Plain WPF comparison: standard `WebView2` and `WebView2CompositionControl` in separate tabs |
 | `DragDropWinUIWebView2` | Plain WinUI 3 WebView2 comparison with no MAUI or Blazor |
 | `NativeWebViewShared` | Static HTML used by the plain WebView2 reductions |
@@ -46,10 +47,10 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 
 | Scenario | WPF Hybrid | WinForms Hybrid | MAUI Windows | MAUI Android | MAUI iOS / Mac Catalyst |
 |---|---|---|---|---|---|
-| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** | **Fails** |
-| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** | **Fails** |
-| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag | **Fails** |
-| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | **Fails in reported verification** |
+| Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails:** drag ends in 2–22 ms | **Works** | **Works when `dragstart` seeds `dataTransfer`; otherwise ends immediately** |
+| Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails** | **Works** | **iOS works with seeded `dataTransfer`; Catalyst remains intermittent in both MAUI and plain WKWebView** |
+| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails:** ends immediately | `dragstart`/`dragend`, but no usable image drag | **Catalyst:** sustained DOM drag; **iOS:** WebKit image preview/context behavior, not a normal image drag |
+| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | **Catalyst works; iPhone Simulator intercepts Mac file transfer before DOM `drop`** |
 | Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** |
 
 ### Conclusions from the Hybrid comparison
@@ -62,8 +63,43 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
   therefore not the common cause of the Windows failures.
 - Current Android WebView supports native element drop and sortable reorder in this sample,
   contrary to several older comments on the issue. Image drag remains unusable.
-- On iOS Simulator and Mac Catalyst, only the pointer-event implementation in scenario 5
-  worked in the reported verification. Detailed per-event logs have not yet been collected.
+- On iOS, both MAUI BlazorWebView and plain WKWebView cancel custom element/list drags when
+  `dataTransfer` is empty. Enable **Seed text/plain in dragstart** to produce reliable
+  element and sortable drops. The final MAUI iOS run completed 5/5 list drops without
+  `-webkit-user-drag` on the list items.
+- On Mac Catalyst, seeding `dataTransfer` reliably fixes the blue element, but sortable
+  drags remain intermittent in both hosts. Removing drag-start styling and deferring the
+  plain DOM reorder did not remove the immediate cancellations. Because testing used Remote
+  Desktop, this needs confirmation from a local console before assigning it to WebKit.
+- Finder file drop reaches both the DOM and Blazor on Mac Catalyst. The iPhone simulator
+  intercepts Mac file transfers and offers to save them to **On My iPhone**, so it cannot
+  validate external file drop into WKWebView.
+- Complete Apple event traces and environment details are in
+  [`results/apple/2026-08-27`](results/apple/2026-08-27/README.md).
+
+### Apple WebKit requires drag data
+
+The original scenarios did not put data into the drag data store. Earlier Android WebView
+and WinForms WebView2 runs accepted that, but Apple WebKit terminates these custom drags
+almost immediately:
+
+```javascript
+element.addEventListener("dragstart", event => {
+    event.dataTransfer.setData("text/plain", element.textContent);
+});
+```
+
+The sample exposes this as **Seed text/plain in dragstart** so the empty-store baseline and
+the WebKit-compatible behavior can be compared without changing code. Non-Apple rows in the
+table were collected with the option disabled.
+
+The separate **Apply -webkit-user-drag: element to the image** option reproduces the image
+configuration used for the Apple image traces without changing the element or sortable
+scenarios.
+
+The plain `DragDropNativeWKWebView` host records every DOM drag event to
+`Documents/dragdrop-dom-events.ndjson`. The MAUI host installs the same Apple-only logging
+bridge through `BlazorWebViewInitializing`.
 
 ## Additional findings and sample fixes
 
@@ -169,6 +205,27 @@ dotnet build src\DragDropMaui -f net10.0-windows10.0.19041.0 -t:Run
 dotnet build src\DragDropMaui -f net10.0-android -t:Run
 ```
 
+### Apple hosts
+
+```bash
+# MAUI Mac Catalyst
+dotnet build src/DragDropMaui -f net10.0-maccatalyst \
+  -p:RuntimeIdentifier=maccatalyst-arm64 -t:Run
+
+# Plain WKWebView Mac Catalyst
+dotnet build src/DragDropNativeWKWebView -f net10.0-maccatalyst \
+  -p:RuntimeIdentifier=maccatalyst-arm64 -t:Run
+
+# Build MAUI for the arm64 iOS simulator. SkipMauiAppIcon works around an
+# Xcode 26.3 SDK / iOS 26.3.1 simulator actool mismatch on this test host.
+dotnet build src/DragDropMaui -f net10.0-ios \
+  -p:RuntimeIdentifier=iossimulator-arm64 -p:SkipMauiAppIcon=true
+
+# Plain WKWebView iOS simulator
+dotnet build src/DragDropNativeWKWebView -f net10.0-ios \
+  -p:RuntimeIdentifier=iossimulator-arm64
+```
+
 ## Run the plain WebView2 ownership reductions
 
 ### WPF
@@ -204,8 +261,11 @@ also requires Windows App SDK 2.0 or later.
 
 ## Remaining verification
 
-- Collect detailed event logs for scenarios 1–4 on iOS and Mac Catalyst, especially the
-  Mac Catalyst external-file-drop behavior.
+- Confirm Catalyst mouse-drag reliability on a local console rather than Remote Desktop.
+- Test iOS external file drop from another iPad app or a physical device; Mac-to-iPhone
+  Simulator transfer is intercepted by CoreSimulator/iOS.
+- Reduce the Catalyst image-preview difference: both hosts emit sustained DOM drag events,
+  but only the MAUI run showed the expected image visual outside the web view.
 - Forward-port the #37904 `AllowDrop=true` handler change to `net11.0` and validate it
   against that branch's Windows App SDK 2.3.1 dependency.
 - Track the upstream WPF composition-control issues linked above.

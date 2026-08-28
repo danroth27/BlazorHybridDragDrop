@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Plain WKWebView Drag &amp; Drop</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { color: #1f1f1f; font-family: system-ui, sans-serif; margin: 0; }
+        header { background: linear-gradient(120deg, rgb(5,39,103), #3a0647); color: #fff; padding: 18px 24px; }
+        header h1 { font-size: 1.5rem; margin: 0 0 5px; }
+        main { margin: 0 auto; max-width: 900px; padding: 20px; }
+        section { border-bottom: 1px solid #ddd; padding: 8px 0 24px; }
+        .source { background: #1e73be; border-radius: 6px; color: #fff; cursor: grab; display: inline-block; padding: 12px; }
+        .target { background: #2e8b57; border-radius: 6px; color: #fff; margin-top: 8px; min-height: 80px; padding: 28px; text-align: center; }
+        .target.over { outline: 3px dashed #ffd700; }
+        .list { list-style: none; margin: 0; max-width: 300px; padding: 0; }
+        .list li { background: #fff; border: 1px solid #ccc; border-radius: 6px; cursor: grab; margin: 6px 0; padding: 10px 12px; user-select: none; }
+        img { border-radius: 8px; height: 120px; width: 120px; }
+        .filedrop { border: 2px dashed #888; border-radius: 8px; padding: 32px; text-align: center; }
+        #log { background: #111; border-radius: 6px; color: #7cfc00; font: 12px Consolas, monospace; height: 240px; overflow: auto; padding: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Plain WKWebView Drag &amp; Drop</h1>
+        <div id="host"></div>
+    </header>
+    <main>
+        <p>No MAUI or Blazor code is involved. Every DOM drag event is written to the native log.</p>
+        <label>
+            <input id="seed-data-transfer" type="checkbox">
+            Seed <code>text/plain</code> in <code>dragstart</code> (required by WebKit)
+        </label>
+        <br>
+        <label>
+            <input id="enable-webkit-image-drag" type="checkbox">
+            Apply <code>-webkit-user-drag: element</code> to the image
+        </label>
+
+        <section data-scenario="s1">
+            <h2>1. Native HTML5 drag &amp; drop</h2>
+            <div id="s1-source" class="source" draggable="true">drag me</div>
+            <div id="s1-target" class="target">and drop me here</div>
+        </section>
+
+        <section data-scenario="s2">
+            <h2>2. Native sortable list</h2>
+            <ul id="s2" class="list">
+                <li draggable="true">Item A</li>
+                <li draggable="true">Item B</li>
+                <li draggable="true">Item C</li>
+                <li draggable="true">Item D</li>
+            </ul>
+        </section>
+
+        <section data-scenario="s3">
+            <h2>3. Draggable image</h2>
+            <img id="s3-img" draggable="true" alt="drag me"
+                 src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' rx='12' fill='%23512BD4'/><text x='60' y='65' font-size='16' fill='white' text-anchor='middle'>drag me</text></svg>">
+        </section>
+
+        <section data-scenario="s4">
+            <h2>4. Drop a file from the OS</h2>
+            <div id="s4-filedrop" class="filedrop">Drop files here</div>
+        </section>
+
+        <h2>Event log</h2>
+        <button id="clear">Clear log</button>
+        <div id="log"></div>
+    </main>
+
+    <script>
+        const eventNames = ['dragstart', 'drag', 'dragenter', 'dragover', 'dragleave', 'drop', 'dragend'];
+        const logElement = document.getElementById('log');
+        let sequence = 0;
+        let draggedItem = null;
+
+        document.getElementById('host').textContent =
+            navigator.userAgent + ' | platform=' + navigator.platform +
+            ' | maxTouchPoints=' + navigator.maxTouchPoints;
+
+        const imageDragOption = document.getElementById('enable-webkit-image-drag');
+        const image = document.getElementById('s3-img');
+        function updateImageDrag() {
+            image.style.webkitUserDrag = imageDragOption.checked ? 'element' : 'auto';
+        }
+        imageDragOption.addEventListener('change', updateImageDrag);
+        updateImageDrag();
+
+        function describeEvent(scenario, event) {
+            const transfer = event.dataTransfer;
+            return {
+                sequence: ++sequence,
+                time: performance.now(),
+                scenario,
+                event: event.type,
+                target: event.target.id || event.target.textContent.trim() || event.target.tagName,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                buttons: event.buttons,
+                effectAllowed: transfer && transfer.effectAllowed,
+                dropEffect: transfer && transfer.dropEffect,
+                types: transfer ? Array.from(transfer.types || []) : [],
+                files: transfer && transfer.files
+                    ? Array.from(transfer.files, file => file.name)
+                    : []
+            };
+        }
+
+        function log(entry) {
+            const json = JSON.stringify(entry);
+            logElement.textContent += json + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+            const handler = window.webkit &&
+                window.webkit.messageHandlers &&
+                window.webkit.messageHandlers.dragLog;
+            if (handler) {
+                handler.postMessage(json);
+            }
+            console.log('[DragDrop DOM] ' + json);
+        }
+
+        document.getElementById('clear').addEventListener('click', () => {
+            logElement.textContent = '';
+            sequence = 0;
+        });
+
+        for (const element of [
+            document.getElementById('s1-source'),
+            document.getElementById('s1-target'),
+            document.getElementById('s2'),
+            document.getElementById('s3-img'),
+            document.getElementById('s4-filedrop')
+        ]) {
+            const scenario = element.id;
+            for (const eventName of eventNames) {
+                element.addEventListener(eventName, event => {
+                    const seedDataTransfer = document.getElementById('seed-data-transfer');
+                    if (eventName === 'dragstart' && event.dataTransfer && seedDataTransfer.checked) {
+                        const text = event.target.textContent.trim() || event.target.alt || scenario;
+                        event.dataTransfer.setData('text/plain', text);
+                    }
+
+                    log(describeEvent(scenario, event));
+                    if (eventName === 'dragenter' || eventName === 'dragover' || eventName === 'drop') {
+                        event.preventDefault();
+                    }
+                });
+            }
+        }
+
+        const source = document.getElementById('s1-source');
+        const target = document.getElementById('s1-target');
+        target.addEventListener('dragenter', () => target.classList.add('over'));
+        target.addEventListener('dragleave', () => target.classList.remove('over'));
+        target.addEventListener('drop', () => {
+            target.classList.remove('over');
+            target.textContent = 'item dropped';
+        });
+        const list = document.getElementById('s2');
+        for (const item of list.children) {
+            item.addEventListener('dragstart', () => {
+                draggedItem = item;
+            });
+            item.addEventListener('dragend', () => {
+                draggedItem = null;
+            });
+            item.addEventListener('drop', () => {
+                if (draggedItem && draggedItem !== item) {
+                    const targetIndex = Array.from(list.children).indexOf(item);
+                    draggedItem.remove();
+                    list.insertBefore(draggedItem, list.children[targetIndex] || null);
+                }
+            });
+        }
+
+        const filedrop = document.getElementById('s4-filedrop');
+        filedrop.addEventListener('drop', event => {
+            if (event.dataTransfer.files.length) {
+                filedrop.textContent = 'dropped: ' +
+                    Array.from(event.dataTransfer.files, file => file.name).join(', ');
+            }
+        });
+    </script>
+</body>
+</html>

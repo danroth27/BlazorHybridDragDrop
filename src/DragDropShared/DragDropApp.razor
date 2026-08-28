@@ -12,6 +12,14 @@
     <div class="ddt-env">@_env</div>
 
     <button class="ddt-btn secondary" @onclick="Clear">Clear log</button>
+    <label class="ddt-option">
+        <input id="seed-data-transfer" type="checkbox" />
+        Seed <code>text/plain</code> in <code>dragstart</code> (required by WebKit)
+    </label>
+    <label class="ddt-option">
+        <input id="enable-webkit-image-drag" type="checkbox" />
+        Apply <code>-webkit-user-drag: element</code> to the image
+    </label>
 
     @* ---------- Scenario 1: Native HTML5 DnD (VegasVault repro) ---------- *@
     <h2>1. Native HTML5 drag &amp; drop <span class="ddt-badge">native</span></h2>
@@ -119,6 +127,7 @@
             $"UserAgent: {env.UserAgent}\n" +
             $"Platform: {env.Platform}   maxTouchPoints: {env.MaxTouchPoints}   " +
             $"PointerEvents: {env.PointerEvents}   ondragstart-in-window: {env.DragEventInWindow}";
+        Console.WriteLine($"[DragDrop] {_env.ReplaceLineEndings(" | ")}");
         StateHasChanged();
     }
 
@@ -130,7 +139,9 @@
 
     private void Log(string message)
     {
-        _log.Add($"{DateTime.Now:HH:mm:ss.fff}  {message}");
+        var entry = $"{DateTime.Now:HH:mm:ss.fff}  {message}";
+        _log.Add(entry);
+        Console.WriteLine($"[DragDrop] {entry}");
         if (_log.Count > 200) _log.RemoveAt(0);
         InvokeAsync(StateHasChanged);
     }
