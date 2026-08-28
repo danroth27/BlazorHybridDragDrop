@@ -1,6 +1,6 @@
 # Apple WKWebView drag-and-drop results — 2026-08-27
 
-These traces compare the MAUI `BlazorWebView` with a plain `WKWebView` using the same
+These results compare the MAUI `BlazorWebView` with a plain `WKWebView` using the same
 HTML5 drag scenarios.
 
 ## Environment
@@ -14,12 +14,6 @@ HTML5 drag scenarios.
 - `Microsoft.iOS` / `Microsoft.MacCatalyst` 26.2.10233
 - Mac interaction was performed through Remote Desktop. Failed or intermittent mouse
   drag initiation should therefore not be treated as a local-hardware result.
-
-Each NDJSON line contains the host and an unthrottled DOM event record:
-
-```json
-{"host":"MAUI BlazorWebView","event":{"sequence":1,"scenario":"s1-source","event":"dragstart"}}
-```
 
 ## Results
 
@@ -60,29 +54,47 @@ Each NDJSON line contains the host and an unthrottled DOM event record:
 7. Dragging a Mac file into an iPhone simulator is not a valid WKWebView file-drop test:
    CoreSimulator/iOS intercepts the transfer and opens the **On My iPhone** import UI.
 
-## Raw traces
+## Representative event sequences
 
-The `*-payload-ab.ndjson` files contain the definitive no-payload/payload controls; their
-first element and list attempts have empty `types`, and later attempts contain
-`text/plain`. The no-payload sample size is one attempt per scenario, consistent with the
-independent MAUI baselines.
+The definitive plain iOS A/B used identical HTML and CSS in one process. The first element
+and list attempts had an empty drag store:
 
-`plain-wkwebview-maccatalyst-text-payload.ndjson` and
-`plain-wkwebview-ios-text-payload.ndjson` came from an earlier plain-host build that used
-the scenario IDs `s1`/`s2`/`s3`/`s4`. Reliability conclusions use the later
-`*-payload-ab.ndjson` traces, whose IDs match the committed host.
+```text
+s1-source dragstart types=[]
+s1-source dragend
+s2        dragstart types=[]
+s2        dragend
+```
 
-Image traces were collected with both the text payload and the image-specific
-`-webkit-user-drag` option enabled. Their individual contribution was not isolated.
+After enabling **Seed text/plain in dragstart**, the element reached its target:
 
-- `maui-maccatalyst-no-payload.ndjson`
-- `maui-maccatalyst-text-payload.ndjson`
-- `maui-maccatalyst-payload-no-start-mutation.ndjson`
-- `plain-wkwebview-maccatalyst-payload-ab.ndjson`
-- `plain-wkwebview-maccatalyst-deferred-reorder.ndjson`
-- `plain-wkwebview-maccatalyst-text-payload.ndjson`
-- `maui-ios-no-payload.ndjson`
-- `maui-ios-text-payload.ndjson`
-- `maui-ios-payload-no-user-drag-css.ndjson`
-- `plain-wkwebview-ios-payload-ab.ndjson`
-- `plain-wkwebview-ios-text-payload.ndjson`
+```text
+s1-source dragstart types=[text/plain]
+s1-source drag...
+s1-target dragenter
+s1-target dragover...
+s1-target drop types=[text/plain]
+s1-source dragend
+```
+
+The next five iOS sortable starts all ended in `drop` and `dragend`. The equivalent MAUI
+payload-only run also completed five drops from five starts.
+
+The final Catalyst controls produced these sortable totals:
+
+| Host / variation | Starts | Drops |
+|---|---:|---:|
+| MAUI, seeded payload | 7 | 1 |
+| MAUI, seeded payload with drag-start styling removed | 5 | 0 |
+| Plain WKWebView, seeded payload | 3 | 1 |
+| Plain WKWebView, reorder deferred until after `drop` | 4 | 2 |
+
+Successful Catalyst file drops reported `types=[Files]` and `files=[LICENSE]` in both
+hosts. Successful image attempts emitted sustained `drag`/`dragover` sequences; visual
+behavior differed as described above.
+
+The applications continue to write complete unthrottled captures to
+`Documents/dragdrop-dom-events.ndjson`. Generated NDJSON is intentionally ignored rather
+than committed because the captures are repetitive and environment-specific. Image runs
+used both the text payload and image-specific `-webkit-user-drag` options; their individual
+contribution was not isolated.

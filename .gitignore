@@ -4,3 +4,4 @@ obj/
 *.user
 *.binlog
 [Bb]uild[Ll]og.*
+results/**/*.ndjson

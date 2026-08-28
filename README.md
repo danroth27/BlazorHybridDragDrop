@@ -74,7 +74,7 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 - Finder file drop reaches both the DOM and Blazor on Mac Catalyst. The iPhone simulator
   intercepts Mac file transfers and offers to save them to **On My iPhone**, so it cannot
   validate external file drop into WKWebView.
-- Complete Apple event traces and environment details are in
+- Apple event summaries, representative sequences, and environment details are in
   [`results/apple/2026-08-27`](results/apple/2026-08-27/README.md).
 
 ### Apple WebKit requires drag data
