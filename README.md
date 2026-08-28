@@ -89,6 +89,12 @@ element.addEventListener("dragstart", event => {
 });
 ```
 
+WebKit issue [#265857](https://bugs.webkit.org/show_bug.cgi?id=265857), **Drag and drop is
+broken unless `DataTransfer.setData()` is called**, tracks the same empty-store symptom in
+WebKitGTK. The report also notes that the HTML specification initializes an empty drag data
+store and does not explicitly require applications to populate it, so this should be treated
+as a WebKit compatibility requirement rather than a portable standards requirement.
+
 The sample exposes this as **Seed text/plain in dragstart** so the empty-store baseline and
 the WebKit-compatible behavior can be compared without changing code. Non-Apple rows in the
 table were collected with the option disabled.
