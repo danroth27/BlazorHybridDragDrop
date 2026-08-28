@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Plain WKWebView Drag &amp; Drop</title>
+    <title>Plain Native WebView Drag &amp; Drop</title>
     <style>
         * { box-sizing: border-box; }
         body { color: #1f1f1f; font-family: system-ui, sans-serif; margin: 0; }
@@ -23,7 +23,7 @@
 </head>
 <body>
     <header>
-        <h1>Plain WKWebView Drag &amp; Drop</h1>
+        <h1>Plain Native WebView Drag &amp; Drop</h1>
         <div id="host"></div>
     </header>
     <main>
@@ -76,8 +76,9 @@
         let sequence = 0;
         let draggedItem = null;
 
+        const host = new URLSearchParams(location.search).get('host') || 'Plain WKWebView';
         document.getElementById('host').textContent =
-            navigator.userAgent + ' | platform=' + navigator.platform +
+            host + ' | ' + navigator.userAgent + ' | platform=' + navigator.platform +
             ' | maxTouchPoints=' + navigator.maxTouchPoints;
 
         const imageDragOption = document.getElementById('enable-webkit-image-drag');
@@ -117,6 +118,9 @@
                 window.webkit.messageHandlers.dragLog;
             if (handler) {
                 handler.postMessage(json);
+            }
+            if (window.dragLog && typeof window.dragLog.postMessage === 'function') {
+                window.dragLog.postMessage(json);
             }
             console.log('[DragDrop DOM] ' + json);
         }

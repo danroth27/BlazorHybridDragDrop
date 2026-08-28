@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DragDropMaui/DragDropMaui.csproj" />
+    <Project Path="src/DragDropNativeAndroid/DragDropNativeAndroid.csproj" />
     <Project Path="src/DragDropNativeWKWebView/DragDropNativeWKWebView.csproj" />
     <Project Path="src/DragDropShared/DragDropShared.csproj" />
     <Project Path="src/DragDropWinForms/DragDropWinForms.csproj" />

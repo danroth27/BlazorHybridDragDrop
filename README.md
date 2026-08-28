@@ -1,7 +1,7 @@
 # Blazor Hybrid drag & drop — cross-host repro for [dotnet/maui#2205](https://github.com/dotnet/maui/issues/2205)
 
 This repository compares the same drag-and-drop scenarios across Blazor Hybrid hosts and
-plain WebView2 controls. It includes the WPF .NET 10 configuration reported in
+plain native WebView controls. It includes the WPF .NET 10 configuration reported in
 [issue comment 4827818805](https://github.com/dotnet/maui/issues/2205#issuecomment-4827818805).
 
 ## Projects
@@ -12,9 +12,11 @@ plain WebView2 controls. It includes the WPF .NET 10 configuration reported in
 | `DragDropWpf` | WPF Blazor Hybrid using `WebView2CompositionControl` |
 | `DragDropWinForms` | Windows Forms Blazor Hybrid using standard WebView2 |
 | `DragDropMaui` | MAUI Blazor Hybrid for Windows, Android, iOS, and Mac Catalyst |
+| `DragDropNativeAndroid` | Plain native Android WebView comparison with no MAUI or Blazor |
 | `DragDropNativeWKWebView` | Plain UIKit `WKWebView` comparison for iOS and Mac Catalyst, with no MAUI or Blazor |
 | `DragDropWpfWebView2` | Plain WPF comparison: standard `WebView2` and `WebView2CompositionControl` in separate tabs |
 | `DragDropWinUIWebView2` | Plain WinUI 3 WebView2 comparison with no MAUI or Blazor |
+| `NativeMobileWebViewShared` | Static diagnostic page shared by the Android WebView and Apple WKWebView reductions |
 | `NativeWebViewShared` | Static HTML used by the plain WebView2 reductions |
 
 MAUI, WPF, and Windows Forms all bootstrap `DragDropShared.Routes` into their host page's
@@ -23,7 +25,7 @@ layout, Bootstrap/global CSS, and the Blazor error UI. The native `index.html` f
 load shared assets and `blazor.webview.js`.
 
 The plain reductions intentionally contain no Blazor code. They determine whether a failure
-belongs to Blazor Hybrid or to the underlying WebView2 host control.
+belongs to Blazor Hybrid or to the underlying native WebView control.
 
 ## Blazor scenarios
 
@@ -49,8 +51,8 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 |---|---|---|---|---|---|---|
 | Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | **Works** | **Works with [`dataTransfer` seeded in `dragstart`](https://bugs.webkit.org/show_bug.cgi?id=265857); otherwise ends immediately** | **Works with seeded `dataTransfer`; otherwise ends immediately** |
 | Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | **Works** | **Works reliably with seeded `dataTransfer`** | **Intermittent with seeded `dataTransfer` in both MAUI and plain WKWebView** |
-| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | `dragstart`/`dragend`, but no usable image drag | WebKit image preview/context behavior, not a normal image drag | Sustained DOM drag; visible preview differed between MAUI and plain WKWebView |
-| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | Not tested | iPhone Simulator intercepts Mac file transfer before DOM `drop` | **Works from Finder** |
+| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | No usable visual drag | WebKit image preview/context behavior, not a normal image drag | Sustained DOM drag; visible preview differed between MAUI and plain WKWebView |
+| External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | **Works from Android Files in split screen** | iPhone Simulator intercepts Mac file transfer before DOM `drop` | **Works from Finder** |
 | Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** | **Works** |
 
 ### Conclusions from the Hybrid comparison
@@ -61,8 +63,9 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 - MAUI Windows supports all five scenarios with Windows App SDK 2.x and
   `WebView2.AllowDrop=true`. The released Windows App SDK 1.7 setup still fails native
   in-page drag.
-- Current Android WebView supports native element drop and sortable reorder in this sample,
-  contrary to several older comments on the issue. Image drag remains unusable.
+- MAUI and plain Android WebView both support native element drop, sortable reorder, and
+  external file drop from Android Files. Both lack a usable image-drag visual, assigning
+  that remaining limitation to Android WebView rather than MAUI or Blazor.
 - On iOS, both MAUI BlazorWebView and plain WKWebView cancel custom element/list drags when
   `dataTransfer` is empty. Enabling **Seed text/plain in dragstart** produced 5/5
   successful sortable drops without `-webkit-user-drag`.
@@ -75,6 +78,8 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
   validate external file drop into WKWebView.
 - Apple event summaries, representative sequences, and environment details are in
   [`results/apple/2026-08-27`](results/apple/2026-08-27/README.md).
+- Android comparison details are in
+  [`results/android/2026-08-28`](results/android/2026-08-28/README.md).
 
 ### Apple WebKit empty drag data behavior
 
@@ -139,6 +144,7 @@ its WPF assembly and produces `MSB3277` for `WindowsBase` versions 4.0 and 5.0.
 
 | Control | Native element DnD | Image drag | External file drop |
 |---|---|---|---|
+| Android WebView 145 | **Works**, including sortable reorder | Sustained DOM events, but no usable visual drag | **Works** from Android Files |
 | WPF standard `WebView2` | **Works** | **Works** | **Works** |
 | WPF `WebView2CompositionControl` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Fails**, even with `AllowExternalDrop=true` |
 | WinUI 3 `WebView2`, Windows App SDK 1.8, `AllowDrop=true` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Works** |
@@ -168,6 +174,9 @@ at the pointer even though the file drop succeeds.
 - WebKit [#265857](https://bugs.webkit.org/show_bug.cgi?id=265857) tracks the same empty
   `DataTransfer` failure observed on Apple platforms, although that report is scoped to
   WebKitGTK.
+- Plain Android WebView reproduces MAUI Android's image-drag limitation, while element,
+  sortable, and external file drops work in both hosts. No MAUI-specific Android defect was
+  found.
 - The MAUI Windows external-file-drop fix is tracked by
   [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Merged
   [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904) sets `AllowDrop=true`
@@ -198,7 +207,15 @@ dotnet build src\DragDropMaui -f net10.0-windows10.0.19041.0 -t:Run
 
 # MAUI Android (with an emulator/device)
 dotnet build src\DragDropMaui -f net10.0-android -t:Run
+
+# Plain native Android WebView
+dotnet build src\DragDropNativeAndroid -t:Run
 ```
+
+For Android external file drop, put the app and Android Files in split screen, open
+**Downloads**, and drag a file onto the external-file target. The plain host writes its
+complete DOM event log to
+`/storage/emulated/0/Android/data/com.companyname.DragDropNativeAndroid/files/dragdrop-dom-events.ndjson`.
 
 ### Apple hosts
 
