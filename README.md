@@ -51,7 +51,7 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
 |---|---|---|---|---|---|---|
 | Native element DnD | **Fails:** `dragstart`, `dragend`; no target events | **Works** | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | **Works** | **Works with [`dataTransfer` seeded in `dragstart`](https://bugs.webkit.org/show_bug.cgi?id=265857); otherwise ends immediately** | **Works with seeded `dataTransfer`; otherwise ends immediately** |
 | Native sortable | **Fails** | Native `drop` works; original sample rerender disrupted reorder | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | **Works** | **Works reliably with seeded `dataTransfer`** | **Intermittent with seeded `dataTransfer` in both MAUI and plain WKWebView** |
-| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | No usable visual drag | WebKit image preview/context behavior, not a normal image drag | Sustained DOM drag; visible preview differed between MAUI and plain WKWebView |
+| Image drag | Preview appears only after leaving the WPF window; no crash | **Works**, no crash | **Fails with Windows App SDK 1.7; works with 2.x and `AllowDrop=true`** | **Works after declaring AndroidX WebKit's `DropDataContentProvider`** | WebKit image preview/context behavior, not a normal image drag | Sustained DOM drag; visible preview differed between MAUI and plain WKWebView |
 | External file drop | **Fails:** disallowed cursor, no events | **Works** | **Works after setting `WebView2.AllowDrop=true`** | **Works from Android Files in split screen** | iPhone Simulator intercepts Mac file transfer before DOM `drop` | **Works from Finder** |
 | Pointer workaround | **Works** | **Works** | **Works** | **Works after `pointercancel` cleanup fix** | **Works** | **Works** |
 
@@ -64,8 +64,10 @@ retested with Windows App SDK `1.8.260710003` and `2.0.1`, WebView2 SDK
   `WebView2.AllowDrop=true`. The released Windows App SDK 1.7 setup still fails native
   in-page drag.
 - MAUI and plain Android WebView both support native element drop, sortable reorder, and
-  external file drop from Android Files. Both lack a usable image-drag visual, assigning
-  that remaining limitation to Android WebView rather than MAUI or Blazor.
+  external file drop from Android Files. Adding AndroidX WebKit's required
+  `DropDataContentProvider` restored the image drag preview and allowed the SVG image to be
+  dropped onto the in-page file target in both hosts. Android Files rejected drag-out from
+  both hosts with "You can't move files from another app."
 - On iOS, both MAUI BlazorWebView and plain WKWebView cancel custom element/list drags when
   `dataTransfer` is empty. Enabling **Seed text/plain in dragstart** produced 5/5
   successful sortable drops without `-webkit-user-drag`.
@@ -144,7 +146,7 @@ its WPF assembly and produces `MSB3277` for `WindowsBase` versions 4.0 and 5.0.
 
 | Control | Native element DnD | Image drag | External file drop |
 |---|---|---|---|
-| Android WebView 145 | **Works**, including sortable reorder | Sustained DOM events, but no usable visual drag | **Works** from Android Files |
+| Android WebView 145 | **Works**, including sortable reorder | **Works with `DropDataContentProvider`;** Android Files rejects drag-out as a move | **Works** from Android Files |
 | WPF standard `WebView2` | **Works** | **Works** | **Works** |
 | WPF `WebView2CompositionControl` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Fails**, even with `AllowExternalDrop=true` |
 | WinUI 3 `WebView2`, Windows App SDK 1.8, `AllowDrop=true` | **Fails:** immediate `dragstart`/`dragend` | **Fails** | **Works** |
@@ -174,9 +176,12 @@ at the pointer even though the file drop succeeds.
 - WebKit [#265857](https://bugs.webkit.org/show_bug.cgi?id=265857) tracks the same empty
   `DataTransfer` failure observed on Apple platforms, although that report is scoped to
   WebKitGTK.
-- Plain Android WebView reproduces MAUI Android's image-drag limitation, while element,
-  sortable, and external file drops work in both hosts. No MAUI-specific Android defect was
-  found.
+- Plain Android WebView reproduces MAUI Android's baseline image-drag limitation, while
+  element, sortable, and external file drops work in both hosts. Declaring AndroidX
+  WebKit's `DropDataContentProvider` makes image drag work in both hosts, so no
+  MAUI-specific drag implementation defect was found. Android Files still rejects the
+  provider-backed image as a cross-app move; see the
+  [Android investigation](results/android/2026-08-28/README.md).
 - The MAUI Windows external-file-drop fix is tracked by
   [dotnet/maui#37903](https://github.com/dotnet/maui/issues/37903). Merged
   [dotnet/maui#37904](https://github.com/dotnet/maui/pull/37904) sets `AllowDrop=true`
