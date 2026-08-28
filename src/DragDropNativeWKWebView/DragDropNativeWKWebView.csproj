@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <BundleResource Include="..\NativeWKWebViewShared\index.html" LogicalName="index.html" />
+    <BundleResource Include="..\NativeMobileWebViewShared\index.html" LogicalName="index.html" />
   </ItemGroup>
 
 </Project>
