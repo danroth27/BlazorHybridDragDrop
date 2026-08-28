@@ -9,6 +9,7 @@ window.dragDropTest = (function () {
     const lastLogged = new Map();
 
     function log(msg) {
+        console.log('[DragDrop] ' + msg);
         try {
             if (dotnet) {
                 dotnet.invokeMethodAsync('OnJsLog', msg);
@@ -18,9 +19,49 @@ window.dragDropTest = (function () {
         }
     }
 
+    function logDomEvent(id, ev, e) {
+        const handler = window.webkit &&
+            window.webkit.messageHandlers &&
+            window.webkit.messageHandlers.dragLog;
+        if (!handler) {
+            return;
+        }
+
+        const transfer = e.dataTransfer;
+        const entry = {
+            sequence: ++domEventSequence,
+            time: performance.now(),
+            scenario: id,
+            event: ev,
+            target: e.target && (e.target.id || e.target.textContent.trim() || e.target.tagName),
+            clientX: e.clientX,
+            clientY: e.clientY,
+            buttons: e.buttons,
+            effectAllowed: transfer && transfer.effectAllowed,
+            dropEffect: transfer && transfer.dropEffect,
+            types: transfer ? Array.from(transfer.types || []) : [],
+            files: transfer && transfer.files
+                ? Array.from(transfer.files, function (file) { return file.name; })
+                : []
+        };
+        handler.postMessage(JSON.stringify(entry));
+        console.log('[DragDrop DOM] ' + JSON.stringify(entry));
+    }
+
+    let domEventSequence = 0;
+
     return {
         init: function (dotNetRef) {
             dotnet = dotNetRef;
+            const imageDragOption = document.getElementById('enable-webkit-image-drag');
+            const image = document.getElementById('s3-img');
+            if (imageDragOption && image) {
+                const updateImageDrag = function () {
+                    image.style.webkitUserDrag = imageDragOption.checked ? 'element' : 'auto';
+                };
+                imageDragOption.addEventListener('change', updateImageDrag);
+                updateImageDrag();
+            }
         },
 
         // Attach raw listeners so we can see exactly which events reach the DOM.
@@ -33,6 +74,14 @@ window.dragDropTest = (function () {
             }
             rawEvents.forEach(function (ev) {
                 el.addEventListener(ev, function (e) {
+                    const seedDataTransfer = document.getElementById('seed-data-transfer');
+                    if (ev === 'dragstart' && e.dataTransfer && seedDataTransfer && seedDataTransfer.checked) {
+                        const text = e.target.textContent.trim() || e.target.alt || id;
+                        e.dataTransfer.setData('text/plain', text);
+                    }
+
+                    logDomEvent(id, ev, e);
+
                     if (ev === 'dragover' || ev === 'drop' || ev === 'dragenter') {
                         e.preventDefault();
                     }
